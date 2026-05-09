@@ -4,6 +4,8 @@ ArXIRch là hệ thống truy xuất thông tin cho tập paper arXiv CS. Projec
 
 Ứng dụng được xây dựng bằng Flask, có giao diện web để nhập truy vấn, chọn phương pháp tìm kiếm, lọc theo category/năm và hiển thị danh sách paper được xếp hạng.
 
+Datasets: https://www.kaggle.com/datasets/Cornell-University/arxiv
+
 ## Chức Năng Chính
 
 - Tìm kiếm paper theo từ khóa bằng TF-IDF và BM25.
