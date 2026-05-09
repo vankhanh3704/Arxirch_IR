@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ArXIRch — ArXiv IR System</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0c0c10;--surface:#13131a;--border:#ffffff0f;--border2:#ffffff18;
+  --text:#e8e4dc;--muted:#5a5870;--dim:#2a2838;
+  --tfidf:#4a8fff;--bm25:#ff6b35;--semantic:#a78bfa;
+  --d2d:#34d399;--bool:#fbbf24;--accent:#e8c97e;
+}
+body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;
+     min-height:100vh;overflow-x:hidden}
+
+/* ── HEADER ── */
+.hdr{display:flex;align-items:flex-end;justify-content:space-between;
+     padding:2rem 2.5rem 1.5rem;border-bottom:1px solid var(--border2)}
+.logo{font-family:'Bebas Neue',sans-serif;font-size:clamp(40px,6vw,72px);
+      letter-spacing:3px;line-height:1;
+      background:linear-gradient(135deg,var(--accent) 0%,#c46b3a 100%);
+      -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+      background-clip:text}
+.logo-sub{font-size:10px;letter-spacing:3px;text-transform:uppercase;
+          color:var(--muted);margin-top:4px}
+.hdr-stats{text-align:right;font-size:11px;color:var(--muted);line-height:2}
+.hdr-stats b{color:var(--text)}
+
+/* ── LAYOUT ── */
+.layout{display:grid;grid-template-columns:260px 1fr;min-height:calc(100vh - 100px)}
+
+/* ── SIDEBAR ── */
+.sidebar{border-right:1px solid var(--border2);padding:1.5rem 1rem;
+         background:var(--surface)}
+.sb-section{margin-bottom:1.5rem}
+.sb-label{font-size:9px;letter-spacing:3px;text-transform:uppercase;
+          color:var(--muted);margin-bottom:.75rem;display:block}
+
+.method-btn{width:100%;text-align:left;padding:.7rem .9rem;margin-bottom:4px;
+            background:transparent;border:1px solid transparent;
+            cursor:pointer;font-family:'DM Mono',monospace;font-size:11px;
+            color:var(--muted);transition:all .15s;position:relative;
+            border-radius:2px}
+.method-btn:hover{color:var(--text);background:var(--dim)}
+.method-btn.active{background:var(--dim);border-color:var(--border2);color:var(--text)}
+.method-btn .dot{width:6px;height:6px;border-radius:50%;display:inline-block;
+                 margin-right:8px;vertical-align:middle}
+.method-btn .tag{font-size:9px;padding:1px 6px;border-radius:2px;
+                 float:right;margin-top:1px;opacity:.7}
+
+.filter-select,.filter-input{width:100%;padding:.5rem .75rem;
+  background:var(--dim);border:1px solid var(--border2);
+  color:var(--text);font-family:'DM Mono',monospace;font-size:11px;
+  border-radius:2px;margin-bottom:.5rem}
+.filter-select option{background:var(--surface)}
+
+.bool-row{display:flex;gap:4px;margin-bottom:.5rem}
+.bool-btn{flex:1;padding:.4rem;font-size:10px;letter-spacing:.5px;
+          text-transform:uppercase;border:1px solid var(--border2);
+          background:transparent;color:var(--muted);cursor:pointer;
+          border-radius:2px;font-family:'DM Mono',monospace;transition:all .15s}
+.bool-btn.active,.bool-btn:hover{background:var(--fbbf24);color:#000;
+  border-color:var(--bool);background:var(--bool)}
+
+.stat-item{display:flex;justify-content:space-between;padding:.35rem 0;
+           border-bottom:1px solid var(--border);font-size:11px}
+.stat-item:last-child{border:none}
+.stat-val{color:var(--text);font-weight:500}
+
+/* ── CONTENT ── */
+.content{padding:2rem 2.5rem}
+
+/* Search bar */
+.search-area{margin-bottom:2rem}
+.search-label{font-size:9px;letter-spacing:3px;text-transform:uppercase;
+              color:var(--muted);display:block;margin-bottom:.6rem}
+.search-box{display:flex;border:1px solid var(--border2);background:var(--surface)}
+.search-input{flex:1;padding:1rem 1.25rem;background:transparent;border:none;
+              outline:none;font-family:'Instrument Serif',serif;font-size:20px;
+              font-style:italic;color:var(--text)}
+.search-input::placeholder{color:var(--muted)}
+.search-btn{padding:1rem 1.75rem;background:var(--accent);color:#0c0c10;
+            border:none;font-family:'DM Mono',monospace;font-size:11px;
+            letter-spacing:2px;text-transform:uppercase;cursor:pointer;
+            transition:opacity .15s;white-space:nowrap}
+.search-btn:hover{opacity:.85}
+
+/* Result header */
+.res-hdr{display:flex;justify-content:space-between;align-items:baseline;
+         margin-bottom:1rem;padding-bottom:.6rem;border-bottom:1px solid var(--border)}
+.res-title{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted)}
+.res-meta{font-size:11px;color:var(--muted)}
+
+/* Cards */
+.results{display:flex;flex-direction:column;gap:.6rem}
+.card{background:var(--surface);border:1px solid var(--border);
+      padding:1.1rem 1.4rem;animation:fadeUp .25s ease both;
+      transition:border-color .15s;cursor:default}
+.card:hover{border-color:var(--border2)}
+@keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.card-top{display:grid;grid-template-columns:36px 1fr auto;gap:.75rem;
+          align-items:start;margin-bottom:.6rem}
+.card-num{font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--muted);
+          line-height:1.1}
+.card-title{font-family:'Instrument Serif',serif;font-size:15px;font-style:italic;
+            line-height:1.4}
+.card-score{text-align:right}
+.score-val{font-size:16px;font-weight:500;display:block}
+.score-lbl{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}
+.card-meta{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
+.m-tag{font-size:9px;padding:2px 8px;border-radius:2px;color:#000;font-weight:500}
+.c-tag{font-size:10px;padding:2px 8px;border:1px solid var(--border);color:var(--muted)}
+.y-tag{font-size:10px;color:var(--muted)}
+.abstract{font-size:11px;color:var(--muted);margin-top:.5rem;
+          line-height:1.6;border-top:1px solid var(--border);padding-top:.5rem}
+
+/* Compare mode */
+.compare-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1rem}
+.compare-col{}
+.compare-hdr{font-size:10px;letter-spacing:2px;text-transform:uppercase;
+             padding:.5rem 0;border-bottom:2px solid;margin-bottom:.75rem}
+.compare-card{padding:.75rem 1rem;margin-bottom:.4rem;background:var(--surface);
+              border:1px solid var(--border);animation:fadeUp .2s ease both}
+.compare-title{font-family:'Instrument Serif',serif;font-size:13px;
+               font-style:italic;line-height:1.35;margin:.2rem 0}
+.compare-bottom{display:flex;justify-content:space-between;align-items:center}
+.compare-cat{font-size:10px;color:var(--muted)}
+
+/* Empty */
+.empty{text-align:center;padding:5rem 2rem;color:var(--muted)}
+.empty-glyph{font-family:'Bebas Neue',sans-serif;font-size:80px;
+             opacity:.08;display:block;letter-spacing:4px}
+.empty-hint{font-size:12px;margin-top:.75rem;
+            line-height:1.8;color:var(--muted)}
+
+/* Seed paper info (D2D) */
+.seed-info{background:var(--dim);border-left:2px solid var(--d2d);
+           padding:.6rem 1rem;margin-bottom:1rem;font-size:11px;
+           color:var(--muted)}
+.seed-info b{color:var(--d2d)}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div>
+    <div class="logo">ArXIRch</div>
+    <div class="logo-sub">ArXiv Information Retrieval System</div>
+  </div>
+  <div class="hdr-stats">
+    <div>Papers indexed: <b>{{ "{:,}".format(stats.total_papers) }}</b></div>
+    <div>Year range: <b>{{ stats.year_min }} – {{ stats.year_max }}</b></div>
+    <div>Methods: <b>TF-IDF · BM25 · Semantic · D2D</b></div>
+  </div>
+</div>
+
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+
+    <div class="sb-section">
+      <span class="sb-label">Search Method</span>
+
+      <button class="method-btn active" data-m="tfidf" onclick="setMethod(this)">
+        <span class="dot" style="background:var(--tfidf)"></span>TF-IDF
+        <span class="tag" style="background:var(--tfidf)20;color:var(--tfidf)">TV1</span>
+      </button>
+      <button class="method-btn" data-m="bm25" onclick="setMethod(this)">
+        <span class="dot" style="background:var(--bm25)"></span>BM25
+        <span class="tag" style="background:var(--bm25)20;color:var(--bm25)">TV1</span>
+      </button>
+      <button class="method-btn" data-m="boolean" onclick="setMethod(this)">
+        <span class="dot" style="background:var(--bool)"></span>Boolean
+        <span class="tag" style="background:var(--bool)20;color:var(--bool)">TV1</span>
+      </button>
+      <button class="method-btn" data-m="semantic" onclick="setMethod(this)">
+        <span class="dot" style="background:var(--semantic)"></span>Semantic SPECTER
+        <span class="tag" style="background:var(--semantic)20;color:var(--semantic)">TV2</span>
+      </button>
+      <button class="method-btn" data-m="d2d_tfidf" onclick="setMethod(this)">
+        <span class="dot" style="background:var(--d2d)"></span>D2D TF-IDF
+        <span class="tag" style="background:var(--d2d)20;color:var(--d2d)">TV3</span>
+      </button>
+      <button class="method-btn" data-m="d2d_bm25" onclick="setMethod(this)">
+        <span class="dot" style="background:var(--d2d)"></span>D2D BM25
+        <span class="tag" style="background:var(--d2d)20;color:var(--d2d)">TV3</span>
+      </button>
+      <button class="method-btn" data-m="all" onclick="setMethod(this)">
+        <span class="dot" style="background:var(--accent)"></span>Compare All
+        <span class="tag" style="background:var(--accent)20;color:var(--accent)">ALL</span>
+      </button>
+    </div>
+
+    <!-- Boolean mode -->
+    <div class="sb-section" id="bool-section" style="display:none">
+      <span class="sb-label">Boolean Mode</span>
+      <div class="bool-row">
+        <button class="bool-btn active" data-mode="AND" onclick="setBool(this)">AND</button>
+        <button class="bool-btn" data-mode="OR"  onclick="setBool(this)">OR</button>
+        <button class="bool-btn" data-mode="NOT" onclick="setBool(this)">NOT</button>
+      </div>
+    </div>
+
+    <div class="sb-section">
+      <span class="sb-label">Filters</span>
+      <select class="filter-select" id="cat-filter">
+        <option value="">All Categories</option>
+        <option value="cs.IR">cs.IR — Information Retrieval</option>
+        <option value="cs.AI">cs.AI — Artificial Intelligence</option>
+        <option value="cs.LG">cs.LG — Machine Learning</option>
+        <option value="cs.CL">cs.CL — Computation & Language</option>
+        <option value="cs.CV">cs.CV — Computer Vision</option>
+      </select>
+      <select class="filter-select" id="year-filter">
+        <option value="">All Years</option>
+        {% for y in range(stats.year_max, stats.year_min - 1, -1) %}
+        <option value="{{ y }}">{{ y }}</option>
+        {% endfor %}
+      </select>
+      <div style="display:flex;align-items:center;gap:.5rem;font-size:11px;color:var(--muted)">
+        Top <input class="filter-input" id="topk" type="number"
+                   value="10" min="3" max="20"
+                   style="width:55px;margin:0"> results
+      </div>
+    </div>
+
+    <div class="sb-section">
+      <span class="sb-label">Last Query</span>
+      <div class="stat-item"><span>Method</span><span class="stat-val" id="st-method">—</span></div>
+      <div class="stat-item"><span>Results</span><span class="stat-val" id="st-count">—</span></div>
+      <div class="stat-item"><span>Time</span><span class="stat-val" id="st-time">—</span></div>
+    </div>
+
+  </div>
+
+  <!-- CONTENT -->
+  <div class="content">
+    <div class="search-area">
+      <span class="search-label">
+        Query — keyword phrase / natural language / paper title (for D2D)
+      </span>
+      <div class="search-box">
+        <input class="search-input" id="q"
+               placeholder="e.g. transformer attention for NLP..."
+               onkeydown="if(event.key==='Enter')doSearch()">
+        <button class="search-btn" onclick="doSearch()">Search →</button>
+      </div>
+    </div>
+
+    <div class="res-hdr">
+      <span class="res-title" id="res-label">Ready</span>
+      <span class="res-meta" id="res-meta">ArXiv CS · 2018–2024</span>
+    </div>
+
+    <div id="seed-info" class="seed-info" style="display:none">
+      <b>D2D Seed Paper:</b> <span id="seed-title">—</span>
+    </div>
+
+    <div id="results">
+      <div class="empty">
+        <span class="empty-glyph">∂IR</span>
+        <div class="empty-hint">
+          Enter a query to search ArXiv CS papers<br>
+          TV1: keyword · TV2: semantic · TV3: related papers
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const COLORS = {
+  tfidf:'var(--tfidf)', bm25:'var(--bm25)', boolean:'var(--bool)',
+  semantic:'var(--semantic)', d2d_tfidf:'var(--d2d)', d2d_bm25:'var(--d2d)',
+};
+const LABELS = {
+  tfidf:'TF-IDF', bm25:'BM25', boolean:'Boolean',
+  semantic:'SPECTER', d2d_tfidf:'D2D-TFIDF', d2d_bm25:'D2D-BM25',
+};
+
+let curMethod  = 'tfidf';
+let boolMode   = 'AND';
+let lastResult = null;
+
+function setMethod(el){
+  curMethod = el.dataset.m;
+  document.querySelectorAll('.method-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('bool-section').style.display =
+    curMethod === 'boolean' ? 'block' : 'none';
+  document.getElementById('st-method').textContent = LABELS[curMethod] || curMethod;
+  if(document.getElementById('q').value.trim()) doSearch();
+}
+
+function setBool(el){
+  boolMode = el.dataset.mode;
+  document.querySelectorAll('.bool-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  if(document.getElementById('q').value.trim()) doSearch();
+}
+
+async function doSearch(){
+  const q    = document.getElementById('q').value.trim();
+  const topk = document.getElementById('topk').value || 10;
+  const cat  = document.getElementById('cat-filter').value;
+  const year = document.getElementById('year-filter').value;
+  if(!q) return;
+
+  const params = new URLSearchParams({
+    q, method: curMethod, k: topk, cat, year, mode: boolMode
+  });
+
+  document.getElementById('res-label').textContent = 'Searching...';
+  document.getElementById('seed-info').style.display = 'none';
+
+  try {
+    const res  = await fetch(`/api/search?${params}`);
+    const data = await res.json();
+    lastResult = data;
+
+    if(curMethod === 'all'){
+      renderCompare(data, q);
+    } else {
+      renderResults(data.results, curMethod, data.time_ms, q);
+      if(data.seed_paper){
+        document.getElementById('seed-info').style.display = 'block';
+        document.getElementById('seed-title').textContent = data.seed_paper;
+      }
+    }
+    document.getElementById('st-count').textContent = curMethod==='all'
+      ? '4×5' : (data.results?.length || 0);
+    document.getElementById('st-time').textContent  = (data.time_ms||'?')+'ms';
+    document.getElementById('res-meta').textContent =
+      `${cat||'All categories'} · ${year||'All years'}`;
+  } catch(e){
+    document.getElementById('results').innerHTML =
+      `<div class="empty"><div style="color:#f87171">Error: ${e.message}</div></div>`;
+  }
+}
+
+function renderResults(papers, method, ms, query){
+  const color = COLORS[method] || 'var(--accent)';
+  const label = LABELS[method] || method;
+  document.getElementById('res-label').textContent =
+    `${label} — "${query}"`;
+  if(!papers || !papers.length){
+    document.getElementById('results').innerHTML =
+      '<div class="empty"><span class="empty-glyph">∅</span><div>No results found</div></div>';
+    return;
+  }
+  document.getElementById('results').innerHTML = papers.map((p,i)=>`
+    <div class="card" style="animation-delay:${i*30}ms">
+      <div class="card-top">
+        <span class="card-num">${String(p.rank).padStart(2,'0')}</span>
+        <span class="card-title">${p.title}</span>
+        <div class="card-score">
+          <span class="score-val" style="color:${color}">
+            ${p.score !== null ? (p.score > 1 ? p.score.toFixed(1) : (p.score*100).toFixed(0)+'%') : '—'}
+          </span>
+          <span class="score-lbl">score</span>
+        </div>
+      </div>
+      <div class="card-meta">
+        <span class="m-tag" style="background:${color};opacity:.9">${label}</span>
+        ${p.categories.split(' ').slice(0,2).map(c=>`<span class="c-tag">${c}</span>`).join('')}
+        <span class="y-tag">${p.year}</span>
+        <span class="y-tag" style="opacity:.5">${p.id}</span>
+      </div>
+      <div class="abstract">${p.abstract}</div>
+    </div>`).join('');
+}
+
+function renderCompare(data, query){
+  document.getElementById('res-label').textContent = `Compare All — "${query}"`;
+  const cols = [
+    {key:'tfidf',    label:'TV1 — TF-IDF',   color:'var(--tfidf)'},
+    {key:'bm25',     label:'TV1 — BM25',      color:'var(--bm25)'},
+    {key:'semantic', label:'TV2 — Semantic',  color:'var(--semantic)'},
+    {key:'d2d_tfidf',label:'TV3 — D2D',       color:'var(--d2d)'},
+  ];
+  document.getElementById('results').innerHTML =
+    `<div class="compare-grid">${cols.map(col=>{
+      const papers = (data[col.key]?.results || []).slice(0,5);
+      return `<div class="compare-col">
+        <div class="compare-hdr" style="color:${col.color};border-color:${col.color}">
+          ${col.label}
+        </div>
+        ${papers.map((p,i)=>`
+          <div class="compare-card" style="animation-delay:${i*25}ms">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="font-family:'Bebas Neue';font-size:18px;color:${col.color};opacity:.5">${i+1}</span>
+              <span style="font-size:11px;font-weight:500;color:${col.color}">
+                ${p.score !== null ? (p.score > 1 ? p.score.toFixed(1) : (p.score*100).toFixed(0)+'%') : '—'}
+              </span>
+            </div>
+            <div class="compare-title">${p.title.slice(0,70)}${p.title.length>70?'…':''}</div>
+            <div class="compare-bottom">
+              <span class="compare-cat">${p.categories.split(' ')[0]} · ${p.year}</span>
+            </div>
+          </div>`).join('')}
+      </div>`;
+    }).join('')}</div>`;
+}
+</script>
+</body>
+</html>
